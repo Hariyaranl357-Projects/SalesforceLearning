@@ -1,0 +1,56 @@
+🧩 Requirement Recap:
+Whenever the Billing Address (BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry) on an Account 
+is updated, all related Contacts should get their Mailing Address updated to match.
+
+<------------Trigger ---------------------->
+// Trigger: AccountTrigger.trigger
+trigger AccountTrigger on Account (after update) {
+    if (Trigger.isAfter && Trigger.isUpdate) {
+        AccountTriggerHandler.updateContactAddressOnBillingChange(Trigger.new, Trigger.oldMap);
+    }
+}
+
+<------------Trigger Logic Handler---------------------->
+// Class: AccountTriggerHandler.cls
+public class AccountTriggerHandler {
+
+    public static void updateContactAddressOnBillingChange(List<Account> newList, Map<Id, Account> oldMap) {
+        Map<Id, Account> accountsToUpdate = new Map<Id, Account>();
+
+        for (Account acc : newList) {
+            Account oldAcc = oldMap.get(acc.Id);
+
+            if (
+                acc.BillingStreet != oldAcc.BillingStreet ||
+                acc.BillingCity != oldAcc.BillingCity ||
+                acc.BillingState != oldAcc.BillingState ||
+                acc.BillingPostalCode != oldAcc.BillingPostalCode ||
+                acc.BillingCountry != oldAcc.BillingCountry
+            ) {
+                accountsToUpdate.put(acc.Id, acc);
+            }
+        }
+
+        if (accountsToUpdate.isEmpty()) return;
+
+        // Get related contacts
+        List<Contact> contactsToUpdate = [
+            SELECT Id, AccountId, MailingStreet, MailingCity, MailingState, MailingPostalCode, MailingCountry
+            FROM Contact
+            WHERE AccountId IN :accountsToUpdate.keySet()
+        ];
+
+        for (Contact con : contactsToUpdate) {
+            Account relatedAcc = accountsToUpdate.get(con.AccountId);
+            con.MailingStreet = relatedAcc.BillingStreet;
+            con.MailingCity = relatedAcc.BillingCity;
+            con.MailingState = relatedAcc.BillingState;
+            con.MailingPostalCode = relatedAcc.BillingPostalCode;
+            con.MailingCountry = relatedAcc.BillingCountry;
+        }
+
+        if (!contactsToUpdate.isEmpty()) {
+            update contactsToUpdate;
+        }
+    }
+}
