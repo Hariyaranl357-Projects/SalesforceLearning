@@ -1,0 +1,81 @@
+//Write an apex trigger to count total number of related opportunities to an account
+
+<------------Trigger ---------------------->
+trigger TotalOpportunitiesTrigger on Opportunity (after insert , after update ,after delete , after undelete) {    
+    if(trigger.isAfter){
+        //insert & undelete
+        if(trigger.isInsert || trigger.isUndelete){
+            TotalOpportunities.countOpportunities(trigger.new,null);            
+        }
+        
+        //update
+        if(trigger.isUpdate){
+            TotalOpportunities.countOpportunities(trigger.new,trigger.oldMap);            
+        }
+         //Delete
+        if(trigger.isDelete){
+            TotalOpportunities.countOpportunities(null,trigger.oldMap);            
+        }
+    }
+}
+
+<------------Trigger Logic Handler---------------------->
+public class TotalOpportunities{
+    
+    public static void countOpportunities(List<Opportunity> oppList , Map<Id,Opportunity> oldMap){
+        
+        //set to store accids
+        Set<Id> accIds = new Set<Id>();
+        
+        //insert and undelete operations
+        if(oppList != null){
+            for(Opportunity opp : oppList){
+                if(opp.AccountId != null){
+                    accIds.add(opp.AccountId);
+                }
+            }
+        }
+        
+        //update operations
+        if(oppList != null && oldMap != null){
+            for(Opportunity opp : oppList){
+                Opportunity oldOpp = oldMap.get(opp.Id);
+                if(opp.AccountId != oldOpp.AccountId){
+                    if(oldOpp.AccountId != null){
+                        accIds.add(oldOpp.AccountId);
+                    }
+                    if(opp.AccountId != null){
+                        accIds.add(opp.AccountId);
+                    }
+                }
+                
+            }
+        }
+        
+        //delete operations
+        if(oldMap != null){
+            for(Opportunity opp : oldMap.values()){
+                if(opp.AccountId != null){
+                    accIds.add(opp.AccountId);
+                }
+            }
+        }
+        
+        if(!accIds.isEmpty()){
+            List<Account> accList = [SELECT Id ,Total_Opportunities__c,(SELECT Id FROM Opportunities)
+                                        FROM Account WHERE Id IN : accIds];
+            List<Account> updateaccList = new List<Account>();
+            
+            if(!accList.isEmpty()){
+                for(Account acc : accList){
+                    acc.Total_Opportunities__c = acc.Opportunities.size();
+                    updateaccList.add(acc);
+                }
+            }
+            
+            if(!updateaccList.isEmpty()){
+                update updateaccList;
+            }
+        }                        
+    }
+}
