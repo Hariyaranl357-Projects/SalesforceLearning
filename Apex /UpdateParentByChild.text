@@ -1,4 +1,11 @@
 //Whenever a Contact's Description is updated, its parent Account's Description should be updated with the same value.
+<------------Two Logics we can use ---------------------->
+//Logic : 1
+Set<Id> accIds ---> Map<Id,Account> -----> List<Account> for UpdateList
+
+//Logic : 2
+Map<con.AccountId,con.Description> ---> List<Account> ----> List<Account> for UpdateList
+
 
 <------------Trigger ---------------------->
 // Trigger: ContactTrigger.trigger
