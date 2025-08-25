@@ -1,0 +1,41 @@
+//Whenever a Contact's Description is updated, its parent Account's Description should be updated with the same value.
+
+<------------Trigger ---------------------->
+// Trigger: ContactTrigger.trigger
+trigger ContactTrigger on Contact (after update) {
+    if (Trigger.isAfter && Trigger.isUpdate) {
+        ContactTriggerHandler.updateAccountDescriptionOnContactChange(Trigger.new, Trigger.oldMap);
+    }
+}
+
+
+<------------Trigger Logic Handler---------------------->
+
+// Class: ContactTriggerHandler.cls
+public class ContactTriggerHandler {
+
+    public static void updateAccountDescriptionOnContactChange(List<Contact> newList, Map<Id, Contact> oldMap) {
+        Map<Id, String> accountIdToDescription = new Map<Id, String>();
+
+        for (Contact con : newList) {
+            Contact oldCon = oldMap.get(con.Id);
+            if (con.Description != oldCon.Description && con.AccountId != null) {
+                accountIdToDescription.put(con.AccountId, con.Description);
+            }
+        }
+
+        if (accountIdToDescription.isEmpty()) return;
+
+        List<Account> accountsToUpdate = [
+            SELECT Id, Description FROM Account WHERE Id IN :accountIdToDescription.keySet()
+        ];
+
+        for (Account acc : accountsToUpdate) {
+            acc.Description = accountIdToDescription.get(acc.Id);
+        }
+
+        if (!accountsToUpdate.isEmpty()) {
+            update accountsToUpdate;
+        }
+    }
+}
