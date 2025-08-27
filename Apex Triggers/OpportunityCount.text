@@ -46,6 +46,9 @@ public class TotalOpportunities{
                     }
                     if(opp.AccountId != null){
                         accIds.add(opp.AccountId);
+                    }else if (opp.AccountId != null) {
+                    // AccountId not changed, but we still want to count
+                    accIds.add(opp.AccountId);
                     }
                 }
                 
@@ -79,3 +82,74 @@ public class TotalOpportunities{
         }                        
     }
 }
+
+
+<------------Trigger Logic Handler with Aggregate Function ---------------------->
+
+public class TotalOpportunities {
+    
+    public static void countOpportunities(List<Opportunity> oppList, Map<Id, Opportunity> oldMap) {
+        Set<Id> accIds = new Set<Id>();
+        
+        // For Insert / Undelete
+        if (oppList != null && oldMap == null) {
+            for (Opportunity opp : oppList) {
+                if (opp.AccountId != null) {
+                    accIds.add(opp.AccountId);
+                }
+            }
+        }
+
+        // For Update
+        if (oppList != null && oldMap != null) {
+            for (Opportunity opp : oppList) {
+                Opportunity oldOpp = oldMap.get(opp.Id);
+                if (opp.AccountId != oldOpp.AccountId) {
+                    if (oldOpp.AccountId != null) {
+                        accIds.add(oldOpp.AccountId);
+                    }
+                    if (opp.AccountId != null) {
+                        accIds.add(opp.AccountId);
+                    }
+                } else if (opp.AccountId != null) {
+                    // AccountId not changed, but we still want to count
+                    accIds.add(opp.AccountId);
+                }
+            }
+        }
+
+        // For Delete
+        if (oppList == null && oldMap != null) {
+            for (Opportunity opp : oldMap.values()) {
+                if (opp.AccountId != null) {
+                    accIds.add(opp.AccountId);
+                }
+            }
+        }
+
+        if (!accIds.isEmpty()) {
+            // Get count of related Opportunities per Account
+            Map<Id, Integer> oppCountMap = new Map<Id, Integer>();
+            for (AggregateResult ar : [
+                SELECT AccountId accId, COUNT(Id) oppCount 
+                FROM Opportunity 
+                WHERE AccountId IN :accIds 
+                GROUP BY AccountId
+            ]) {
+                oppCountMap.put((Id) ar.get('accId'), (Integer) ar.get('oppCount'));
+            }
+
+            List<Account> accToUpdate = new List<Account>();
+            for (Id accId : accIds) {
+                Account acc = new Account(Id = accId);
+                acc.Total_Opportunities__c = oppCountMap.containsKey(accId) ? oppCountMap.get(accId) : 0;
+                accToUpdate.add(acc);
+            }
+
+            if (!accToUpdate.isEmpty()) {
+                update accToUpdate;
+            }
+        }
+    }
+}
+
