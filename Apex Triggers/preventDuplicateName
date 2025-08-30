@@ -1,0 +1,52 @@
+public with sharing class AccountTriggerHandlerClass {
+    
+/**
+     * @Method Name     : preventAccountNameDuplicates
+     * @Description     : Prevents creation or update of accounts with duplicate names 
+     *                    by comparing the new list with existing account records.
+     * @Author          : 
+     * @Last Modified By: 
+     * @Last Modified On: June 27, 2025
+     * @Modification Log:
+     * ------------------------------------------------------------------------------
+     * Ver   | Date         | Author       | Modification
+     * ------------------------------------------------------------------------------
+     * 1.0   | June 27, 2025 |              | Initial version
+     **/
+    
+    public static void preventAccountNameDucplicates(List<Account> newAccountList, Map<Id, Account> oldAccountMap) {
+        Set<String> accountNameSet = new Set<String>();
+        Map<String, Account> accountNameMap = new Map<String, Account>();
+        //Insert Operations
+        for(Account acc : newAccountList){
+            accountNameSet.add(acc.Name);
+        }
+
+        //Update operations
+        for(Account acc : newAccountList){
+            if(oldAccountMap != null){
+                if(acc.Name != oldAccountMap.get(acc.Id).Name){
+                    accountNameSet.add(acc.Name);
+                }
+        }
+
+        if(accountNameSet.isEmpty()){
+            return;
+        }
+        List<Account> accList = [SELECT Id, Name FROM Account WHERE Name IN :accountNameSet];
+
+        for(Account accRec : accList){
+            accountNameMap.put(accRec.Name, accRec);
+        }
+
+        for(Account accone: newAccountList){
+            if(accountNameMap.containsKey(accone.Name)){
+                if(accountNameMap.get(accone.Name).Id != accone.Id){
+                    accone.addError('Account name already exists');
+                }
+            }
+        }
+
+    }
+  }
+}
