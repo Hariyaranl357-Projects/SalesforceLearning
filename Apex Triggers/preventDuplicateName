@@ -1,3 +1,13 @@
+//  Prevents creation or update of accounts with duplicate names by comparing the new list with existing account records.
+
+<------------Trigger ---------------------->
+// Trigger: ContactTrigger.trigger
+trigger ContactTrigger on Contact (after update) {
+    if (Trigger.isAfter && Trigger.isUpdate) {
+        ContactTriggerHandler.updateAccountDescriptionOnContactChange(Trigger.new, Trigger.oldMap);
+    }
+}
+
 public with sharing class AccountTriggerHandlerClass {
     
 /**
